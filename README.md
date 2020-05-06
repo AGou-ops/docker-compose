@@ -1,6 +1,6 @@
 # docker-compose
 
-![docker-compose](./docker-compose.png)
+![docker-compose](https://agou-images.oss-cn-qingdao.aliyuncs.com/blog-images/docker-compose/docker-compose.png)
 
 ## `docker-compose`安装
 
