@@ -4,81 +4,9 @@
 
 ![docker-compose-liunx.png](image/docker-compose-liunx.png)
 
-## 安装docker
-
-```shell
-# 通过yum源安装docker
-sudo yum -y install docker
-# 启动docker
-sudo systemctl start docker
-# 开机自启
-sudo systemctl enable docker
-```
-
-## `docker-compose`安装
-
-```shell
-# 安装EPEL软件包
-sudo yum -y install epel-release
-# 安装pip3
-sudo yum install -y python36-pip
-# 升级
-sudo pip3 install --upgrade pip
-# 验证pip3版本
-pip3 --version
-# docker-compose安装
-sudo pip3 install -U docker-compose
-# 验证docker-compose版本
-docker-compose --version
-# 安装补全插件
-# curl -L https://raw.githubusercontent.com/docker/compose/1.25.0/contrib/completion/bash/docker-compose > /etc/bash_completion.d/docker-compose
-```
-
-## `docker-compose`卸载
-
-```shell
-pip3 uninstall docker-compose
-```
-
-## `docker-compose`相关命令
-
-```shell
-# 构建镜像
-docker-compose build
-# 构建镜像，--no-cache表示不用缓存，否则在重新编辑Dockerfile后再build可能会直接使用缓存而导致新编辑内容不生效
-docker-compose build --no-cache
-# config 校验文件格式是否正确
-docker-compose -f docker-compose.yml config
-# 运行服务
-ocker-compose up -d
-# 启动/停止服务
-docker-compose start/stop 服务名
-# 停止服务
-docker-compose down
-# 查看容器日志
-docker logs -f 容器ID
-# 查看镜像
-docker-compose images
-# 拉取镜像
-docker-compose pull 镜像名
-```
-
-## 常用shell组合
-
-```shell
-# 删除所有容器
-docker stop `docker ps -q -a` | xargs docker rm
-# 删除所有标签为none的镜像
-docker images|grep \<none\>|awk '{print $3}'|xargs docker rmi
-# 查找容器IP地址
-docker inspect 容器名或ID | grep "IPAddress"
-# 创建网段, 名称: mynet, 分配两个容器在同一网段中 (这样子才可以互相通信)
-docker network create mynet
-docker run -d --net mynet --name container1 my_image
-docker run -it --net mynet --name container1 another_image
-```
 
 ---
+
 
 ## 环境准备
 
@@ -96,12 +24,14 @@ cd docker-compose/Liunx
 
 ### Portainer
 
+> docker可视化管理界面工具
+
 ```shell
 docker-compose -f docker-compose-portainer.yml -p portainer up -d
 
--p：项目名称
--f：指定docker-compose.yml文件路径
--d：后台启动
+# -p：项目名称
+# -f：指定docker-compose.yml文件路径
+# -d：后台启动
 ```
 
 访问地址：[`ip地址:9000`](www.zhengqingya.com:9000)
@@ -272,15 +202,75 @@ docker-compose -f docker-compose-couchbase.yml -p couchbase up -d
 ```shell
 # 当前目录下所有文件赋予权限(读、写、执行)
 chmod -R 777 ./redis
-# 运行
+chmod -R 777 ./redis-master-slave
+chmod -R 777 ./redis-master-slave-sentinel
+chmod -R 777 ./redis-cluster
+# 运行 -- 单机模式
 docker-compose -f docker-compose-redis.yml -p redis up -d
+# 运行 -- 主从复制模式（主写从读）
+docker-compose -f docker-compose-redis-master-slave.yml -p redis up -d
+# 运行 -- 哨兵模式（sentinel监视redis主从服务，当某个master服务下线时，自动将该master下的某个从服务升级为master服务替代已下线的master服务继续处理请求 -- 即主节点切换）
+docker-compose -f docker-compose-redis-master-slave-sentinel.yml -p redis up -d
+# 运行 -- Redis Cluster 集群
+docker-compose -f docker-compose-redis-cluster.yml -p redis up -d
 ```
 
-连接redis
+###### 连接redis
 
 ```shell
 docker exec -it redis redis-cli -a 123456  # 密码为123456
 ```
+
+###### 哨兵模式查看
+
+```shell
+# 连接
+docker exec -it redis-sentinel-1 redis-cli -p 26379 -a 123456
+# 查看redis主信息
+sentinel master mymaster
+# 查看redis从信息
+sentinel slaves mymaster
+```
+
+###### Redis Cluster 集群
+
+redis.conf中主要新增了如下配置
+
+```
+cluster-enabled yes
+cluster-config-file nodes-6379.conf
+cluster-node-timeout 15000
+```
+
+创建集群
+
+```shell
+docker exec -it redis-6381 redis-cli -h 172.22.0.11 -p 6381 -a 123456 --cluster create 172.22.0.11:6381 redis-6382:6382 redis-6383:6383 redis-6384:6384 redis-6385:6385 redis-6386:6386 --cluster-replicas 1
+```
+
+查看集群
+
+```shell
+# 连接集群某个节点
+docker exec -it redis-6381 redis-cli -c -h redis-6381 -p 6381 -a 123456
+# 查看集群信息
+cluster info
+# 查看集群节点信息
+cluster nodes
+# 查看slots分片
+cluster slots
+```
+
+### Redis Manager
+
+> Redis 一站式管理平台，支持集群（cluster、master-replica、sentinel）的监控、安装（除sentinel）、管理、告警以及基本的数据操作功能
+
+```shell
+docker-compose -f docker-compose-redis-manager.yml -p redis-manager up -d
+```
+
+web管理端：[`ip地址:8182`](www.zhengqingya.com:8182)
+登录账号密码：`admin/admin`
 
 ### Jrebel
 
@@ -296,7 +286,14 @@ docker-compose -f docker-compose-jrebel.yml -p jrebel up -d
 ### Nginx
 
 ```shell
+# 运行
 docker-compose -f docker-compose-nginx.yml -p nginx up -d
+
+# 进入容器
+docker exec -it nginx /bin/bash
+
+# nginx修改配置后重载
+nginx -s reload
 ```
 
 访问地址：[`ip地址:80`](www.zhengqingya.com:80)
@@ -460,20 +457,23 @@ docker-compose -f docker-compose-minio.yml -p minio up -d
 ### Nacos
 
 ```shell
-# 注：需要修改docker-compose-nacos-mysql.yml 中相关数据库连接信息和JVM参数相关信息
+# 普通单机模式版本  注：需要修改docker-compose-nacos.yml 中相关数据库连接信息和JVM参数相关信息
 docker-compose -f docker-compose-nacos.yml -p nacos up -d
 
-# mysql数据库版 【 需自己建库`nacos_config`, 并执行`/Liunx/nacos_mysql/nacos-mysql.sql`脚本 】
+# mysql数据库版 【 需自己建库`nacos_config`, 并执行`/Liunx/nacos_xxx/nacos-mysql.sql`脚本 】
 # nacos1.4.1版本
-docker-compose -f docker-compose-nacos-mysql.yml -p nacos up -d
+docker-compose -f docker-compose-nacos-1.4.1.yml -p nacos_v1.4.1 up -d
 # nacos2.0.3版本
-docker-compose -f docker-compose-nacos-mysql-2.0.3.yml -p nacos_v2.0.3 up -d
+docker-compose -f docker-compose-nacos-2.0.3.yml -p nacos_v2.0.3 up -d
+# nacos集群2.0.3版本
+# java客户端连接 "-Dspring.cloud.nacos.discovery.server-addr=www.zhengqingya.com:8880 -Dspring.cloud.nacos.discovery.username=nacos -Dspring.cloud.nacos.discovery.password=nacos"
+docker-compose -f docker-compose-nacos-cluster-2.0.3.yml -p nacos_cluster_v2.0.3 up -d
 ```
 
 访问地址：[`ip地址:8848/nacos`](www.zhengqingya.com:8848/nacos)
 登录账号密码默认：`nacos/nacos`
 
-> 注：`docker-compose-nacos-mysql.yml`已开启连接密码安全认证，在java连接时需新增配置如下
+> 注：`docker-compose-nacos-xxx.yml`已开启连接密码安全认证，在java连接时需新增配置如下
 
 ```yml
 spring:
@@ -487,17 +487,111 @@ spring:
         password: ${spring.cloud.nacos.discovery.password}
 ```
 
+集群
+![nacos集群节点列表.png](image/nacos-cluster-nodes.png)
+
+nginx配置修改生效
+
+```shell
+# 进入容器
+docker exec -it nacos_nginx /bin/bash
+# nginx修改配置后重载
+nginx -s reload
+```
+
 ### Sentinel
 
 ```shell
 # 普通版
 docker-compose -f docker-compose-sentinel.yml -p sentinel up -d
-# 持久化配置到mysql版
+
+# 监控数据持久化到mysql版
 # docker-compose -f docker-compose-sentinel-mysql.yml -p sentinel up -d
+
+# 规则持久化到nacos
+# docker-compose -f docker-compose-sentinel-nacos.yml -p sentinel up -d
 ```
 
 访问地址：[`ip地址:8858`](www.zhengqingya.com:8858)
 登录账号密码：`sentinel/sentinel`
+
+#### SpringCloud中规则持久化到nacos
+
+```xml
+<!-- Sentinel规则持久化至Nacos -->
+<dependency>
+   <groupId>com.alibaba.csp</groupId>
+   <artifactId>sentinel-datasource-nacos</artifactId>
+</dependency>
+```
+
+```yml
+spring:
+  application:
+    name: demo # 应用名称
+  cloud:
+    sentinel:
+      enabled: true # 自动化配置是否生效
+      eager: true   # 禁用控制台懒加载
+      web-context-unify: false # 关闭调用链路收敛 => 实现链路流控
+      transport:
+        dashboard: www.zhengqingya.com:8858 # 控制台地址
+        client-ip: ${spring.cloud.client.ip-address} # 获取本机IP地址
+        port: 18719 # 启动该服务，会在应用程序的相应服务器上启动HTTP Server，并且该服务器将与Sentinel dashboard进行交互
+      # ============== ↓↓↓↓↓↓ 增加规则持久化配置到nacos ↓↓↓↓↓↓ ==============
+      datasource:
+        # 流控规则
+        flow:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr}
+            username: ${spring.cloud.nacos.config.username}
+            password: ${spring.cloud.nacos.config.password}
+            namespace: ${spring.cloud.nacos.config.namespace}
+            group-id: sentinel-group
+            data-id: ${spring.application.name}-sentinel-flow-rules
+            # 规则类型：flow、degrade、param-flow、system、authority
+            rule-type: flow
+        # 熔断降级
+        degrade:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr}
+            username: ${spring.cloud.nacos.config.username}
+            password: ${spring.cloud.nacos.config.password}
+            namespace: ${spring.cloud.nacos.config.namespace}
+            group-id: sentinel-group
+            data-id: ${spring.application.name}-sentinel-degrade-rules
+            rule-type: degrade
+        # 热点规则
+        param-flow:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr}
+            username: ${spring.cloud.nacos.config.username}
+            password: ${spring.cloud.nacos.config.password}
+            namespace: ${spring.cloud.nacos.config.namespace}
+            group-id: sentinel-group
+            data-id: ${spring.application.name}-sentinel-param-flow-rules
+            rule-type: param-flow
+        # 系统规则
+        system:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr}
+            username: ${spring.cloud.nacos.config.username}
+            password: ${spring.cloud.nacos.config.password}
+            namespace: ${spring.cloud.nacos.config.namespace}
+            group-id: sentinel-group
+            data-id: ${spring.application.name}-sentinel-system-rules
+            rule-type: system
+        # 授权规则
+        authority:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr}
+            username: ${spring.cloud.nacos.config.username}
+            password: ${spring.cloud.nacos.config.password}
+            namespace: ${spring.cloud.nacos.config.namespace}
+            group-id: sentinel-group
+            data-id: ${spring.application.name}-sentinel-authority-rules
+            rule-type: authority
+```
 
 ### Kafka
 
@@ -527,10 +621,44 @@ docker-compose -f docker-compose-gitlab.yml -p gitlab up -d
 ### Jenkins
 
 ```shell
+# 当前目录下所有文件赋予权限(读、写、执行)
+chmod -R 777 ./jenkins
+# 运行
 docker-compose -f docker-compose-jenkins.yml -p jenkins up -d
 ```
 
 访问地址：[`ip地址:8080`](www.zhengqingya.com:8080)
+
+###### 查看密码
+
+```shell
+# 普通权限进入到docker容器
+docker exec -it jenkins /bin/bash
+# 使用root权限进入到docker容器
+docker exec -it -u root jenkins /bin/bash
+# 查看密码
+cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+###### jenkins升级问题
+
+```shell
+# docker下jenkins升级只要需要替换容器中的jenkins.war文件并重启docker容器
+# 1.进入docker容器，其中-u root是使用root权限登录
+docker exec -u root -it jenkins /bin/bash 
+# 2.使用wget命令下载最新版本的jenkins.war文件
+# 3.使用whereis jenkins命令查看jenkins的安装路径       `/usr/share/jenkins/jenkins.war`
+# 4.使用cp命令将新的war包覆盖旧文件即可
+# 5.浏览器访问ip:8080/restart 重启即可升级成功
+# 备注：在进行容器部署时可以将容器的【/user/share/jenkins】目录挂载在宿主机上，以后升级只需替换jenkins.war文件即可。此种方式存在一个问题，在部署后由于宿主机的挂载文件夹为空，所以在部署后无法正常启动容器，放入jenkins.war与ref文件即可正常启动。
+```
+
+###### jenkins时区设置问题
+```shell script
+# 1.进入系统管理->脚本命令行，执行下面命令设置为上海时间(该方式重启后失效)
+System.setProperty('org.apache.commons.jelly.tags.fmt.timeZone', 'Asia/Shanghai') 
+# 2.在部署容器时添加参数，-e JAVA_OPTS=-Duser.timezone=Asia/Shanghai（一直有效）
+```
 
 ### Nextcloud - 多端同步网盘
 
@@ -679,14 +807,16 @@ docker-compose -f docker-compose-flowable.yml -p flowable up -d
 可视化界面访问地址：[`http://ip地址:9004/flowable-ui`](www.zhengqingya.com:9004/flowable-ui)
 默认登录账号密码：`admin/test`
 
-### Prometheus - 监控系统和时间序列数据库
+### Prometheus - 开源的系统监控和报警系统
 
-> 注：此为未完善版！
 > `docker-compose-prometheus.yml` 需修改grafana中配置的mysql连接信息
 > `prometheus.yml` 自行配置
 
 ```shell
+# 运行
 docker-compose -f docker-compose-prometheus.yml -p prometheus up -d
+# 查看grafana日志
+docker logs -fn10 prometheus-grafana
 ```
 
 1. grafana访问地址：[`http://ip地址:3000`](www.zhengqingya.com:3000)
@@ -694,10 +824,15 @@ docker-compose -f docker-compose-prometheus.yml -p prometheus up -d
 2. prometheus访问地址: [`http://ip地址:9090`](www.zhengqingya.com:9090)
 3. exporter访问地址: [`http://ip地址:9100/metrics`](www.zhengqingya.com:9100/metrics)
 
+![prometheus-targets.png](image/prometheus-targets.png)
+
+![prometheus-grafana-jvm.png](image/prometheus-grafana-jvm.png)
 
 #### 其它
 
-1. grafana面板资源 https://grafana.com/grafana/dashboards
+grafana面板资源 https://grafana.com/grafana/dashboards
+
+node-exporter =》 https://grafana.com/grafana/dashboards/8919
 
 ### Zipkin - 分布式追踪系统
 
@@ -745,7 +880,13 @@ docker-compose -f docker-compose-zipkin.yml -p zipkin up -d
 ### Rancher - 开源容器管理平台
 
 ```shell
+# 运行
 docker-compose -f docker-compose-rancher.yml -p rancher up -d
+# 查看密码
+docker logs rancher 2>&1 | grep "Bootstrap Password:"
+# 2022/04/04 11:39:52 [INFO] Bootstrap Password: 4jtd9fw2dt9t9qs5ffrs4srvf5xl95z6jbgm2qqpb97276qg8jgkgl
+# Server URL
+https://www.zhengqingya.com
 ```
 
 访问地址：[`http://ip地址:80`](www.zhengqingya.com:80)
@@ -754,7 +895,7 @@ docker-compose -f docker-compose-rancher.yml -p rancher up -d
 
 > 1. config.txt => https://github.com/seata/seata/blob/develop/script/config-center/config.txt
 > 2. nacos-config.sh => https://github.com/seata/seata/blob/develop/script/config-center/nacos/nacos-config.sh
-> 3. mysql.sql => https://github.com/seata/seata/blob/develop/script/server/db/mysql.sql
+> 3. seata.sql => https://github.com/seata/seata/blob/develop/script/server/db/mysql.sql
 
 ```shell
 # 运行
@@ -763,6 +904,63 @@ docker-compose -f docker-compose-seata.yml -p seata up -d
 docker exec -it seata_server sh
 ```
 
+### SonarQube
+
+一款静态代码质量分析工具，支持Java、Python、PHP、JavaScript、CSS等25种以上的语言，而且能够集成在IDE、Jenkins、Git等服务中，方便随时查看代码质量分析报告。
+
+```shell
+docker-compose -f docker-compose-sonarqube.yml -p sonarqube up -d
+# mysql配置版
+# docker-compose -f docker-compose-sonarqube6.7.1.yml -p sonarqube up -d
+```
+
+访问地址：[`http://ip地址:9005`](www.zhengqingya.com:9005)
+默认登录账号密码：`admin/admin`
+
+
+### canal
+
+阿里巴巴 MySQL binlog 增量订阅&消费组件
+
+```shell
+# 导入初始化SQL
+Liunx/canal/canal_admin/canal_manager.sql
+
+# 运行  (tips:先修改配置文件信息)
+docker-compose -f docker-compose-canal.yml -p canal up -d
+```
+
+访问地址：[`http://ip地址:8089`](www.zhengqingya.com:8089)
+默认登录账号密码：`admin/123456`
+
+
+### NPS
+
+一款轻量级、高性能、功能强大的内网穿透代理服务器。支持tcp、udp、socks5、http等几乎所有流量转发，可用来访问内网网站、本地支付接口调试、ssh访问、远程桌面，内网dns解析、内网socks5代理等等……，并带有功能强大的web管理端。
+
+```shell
+# 运行服务端
+docker-compose -f docker-compose-nps.yml -p nps up -d
+```
+
+访问地址：[`http://ip地址:8080`](www.zhengqingya.com:8080)
+默认登录账号密码：`admin/123`
+
+#### 服务端配置
+
+新增客户端
+
+![nps-客户端配置.png](./image/nps-客户端配置.png)
+
+新增TCP隧道
+
+![nps-tcp隧道配置.png](image/nps-tcp隧道配置.png)
+
+#### 客户端
+
+```shell
+docker run -d --name npc --net=host ffdfgdfg/npc:v0.26.10 -server=服务端ip地址:8024 -vkey=唯一验证密钥 -type=tcp
+```
 
 
 ==============================================================================\
