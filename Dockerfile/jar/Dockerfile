@@ -33,14 +33,21 @@ VOLUME /tmp
 # [注：EXPOSE指令只是声明容器运行时提供的服务端口，给读者看有哪些端口，在运行时只会开启程序自身的端口！！]
 EXPOSE ${APP_PORT}
 
+
 # 让你先休息3秒再开始运行吧🏃🏃🏃
-CMD echo "****** Start... " & \
-    echo "****** APP_JAR: ${APP_JAR} " & \
-    echo "****** APP_PORT: ${APP_PORT} " & \
-    echo "****** JAVA_OPTS: ${JAVA_OPTS} " & \
-    echo "****** ${APP_JAR} will run ..." & \
-    sleep 3 & \
-    echo "****** 运行命令：nohup java -jar ${JAVA_OPTS} /home/${APP_JAR} >> /home/${APP_NAME}.log 2>&1 &" & \
-    nohup java -jar ${JAVA_OPTS} /home/${APP_JAR} >> /home/${APP_NAME}.log 2>&1 & \
-    echo "****** 查看日志..." & \
-    tail -f /home/${APP_NAME}.log
+#CMD echo "****** Start... " & \
+#    echo "****** APP_JAR: ${APP_JAR} " & \
+#    echo "****** APP_PORT: ${APP_PORT} " & \
+#    echo "****** JAVA_OPTS: ${JAVA_OPTS} " & \
+#    echo "****** ${APP_JAR} will run ..." & \
+#    sleep 3 & \
+#    echo "****** 运行命令：nohup java -jar ${JAVA_OPTS} /home/${APP_JAR} >> /home/${APP_NAME}.log 2>&1 &" & \
+#    nohup java -jar ${JAVA_OPTS} /home/${APP_JAR} >> /home/${APP_NAME}.log 2>&1 & \
+#    echo "****** 查看日志..." & \
+#    tail -f /home/${APP_NAME}.log
+
+
+# 以exec格式的CMD指令 -- 可实现优雅停止容器服务
+# "sh", "-c" : 可通过exec模式执行shell  =》 获得环境变量
+ENV RUN_CMD "java -jar ${JAVA_OPTS} /home/${APP_JAR}"
+CMD ["sh", "-c", "echo \"****** 运行命令：${RUN_CMD}\"   &   ${RUN_CMD}"]
