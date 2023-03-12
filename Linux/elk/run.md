@@ -1,11 +1,15 @@
 ### ELK
 
+`Elasticsearch` + `Logstash` + `Kibana` 搭建日志监控系统
+
+1. `Logstash` 日志收集+解析+转换
+2. `Elasticsearch` 日志搜索
+3. `Kibana` 日志展示
+
 ```shell
-# 当前目录下所有文件赋予权限(读、写、执行)
-chmod -R 777 ./elk
 # 运行
 docker-compose -f docker-compose-elk.yml -p elk up -d
-# 若运行之后启动日志再次报相关权限问题，再次给新产生的文件赋予权限
+# 若运行之后启动日志报相关权限问题，给新产生的文件赋予权限
 chmod -R 777 ./elk
 ```
 

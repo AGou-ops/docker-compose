@@ -1,0 +1,22 @@
+# 可参考 https://www.elastic.co/guide/en/beats/filebeat/7.14/filebeat-reference-yml.html
+
+# 收集系统日志
+filebeat:
+  inputs:
+    - type: log
+      enabled: true
+      encoding: utf-8
+      paths:
+        - /usr/share/filebeat/my-log/demo*.log
+      tags: [ "demo" ]
+      # java多行日志合并
+      multiline:
+        pattern: '^\d{4}\-\d{2}\-\d{2}\s\d{2}:\d{2}:\d{2}' # 匹配的正则 不是以 2021-10-01 12:00:00 格式开头的将合并到上一行
+        negate: true                                       # 是否反向匹配
+        match: after                                       # 取值为 after 则放到上一行之后，取值为 before 则放到下一行之前
+        timeout: 3s
+
+
+# 输出到logstash
+output.logstash:
+  hosts: ["logstash:5044"] # logstash服务器地址，可以有多个，以逗号","隔开
