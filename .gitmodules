@@ -1,0 +1,6 @@
+[submodule "Linux/prom_monitor"]
+	path = Linux/prom_monitor
+	url = https://github.com/stefanprodan/dockprom.git
+[submodule "prom_monitor"]
+	path = prom_monitor
+	url = https://github.com/stefanprodan/dockprom.git

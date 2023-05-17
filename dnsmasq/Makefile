@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	docker build -t dnsmasq-gui:v1 .
+	docker build -t dnsmasq-gui:tmp .
 
 .PHONY: compose
 compose:
