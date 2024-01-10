@@ -13,7 +13,7 @@ cd docker-compose/Linux
 ### 二、运行服务
 
 > 环境部署见每个服务下的`run.md`；
-> ex: `Linux/portainer/run.md`
+> eg: `Linux/portainer/run.md`
 
 #### 数据库
 
@@ -34,6 +34,7 @@ cd docker-compose/Linux
 2. [kafka](./Linux/kafka)
 3. [rabbitmq](./Linux/rabbitmq)
 4. [rocketmq](./Linux/rocketmq)
+5. [pulsar](./Linux/pulsar)
 
 #### 日志系统
 
@@ -85,6 +86,7 @@ cd docker-compose/Linux
 15. [jpom](./Linux/jpom)
 16. [confluence](./Linux/confluence)
 17. [jira](./Linux/jira)
+18. [skywalking](./Linux/skywalking)
 
 ---
 

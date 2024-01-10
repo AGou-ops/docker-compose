@@ -1,5 +1,12 @@
 version: '3'
 
+# 定义通用配置
+x-common-config: &common-config
+  restart: unless-stopped
+  environment:
+    TZ: Asia/Shanghai
+    LANG: en_US.UTF-8
+
 # 网桥xx -> 方便相互通讯
 networks:
   xx:
@@ -8,10 +15,12 @@ networks:
       config:
         - subnet: "172.22.0.0/24"
 
+name: xx # project名称  eg: 等同于 docker-compose -f docker-compose-nginx.yml -p nginx up -d 运行时的 -p
 services:
   # tips:不要使用带下划线的名称 ex:zq_1   原因：在某些程序里，解析不了此数据
   zq-1:
     image: xx
+    <<: *common-config
 
   zq2:
     image: xx
@@ -27,6 +36,7 @@ services:
     hostname: localhost                 # 指定容器hostname
     #    restart: always                    # 指定容器退出后的重启策略为始终重启
     restart: unless-stopped             # 指定容器退出后的重启策略为始终重启，但是不考虑在Docker守护进程启动时就已经停止了的容器
+    privileged: true                    # 获取宿主机root权限
     volumes:                            # 数据卷挂载路径设置,将本机目录映射到容器目录
       - "/xx/my.cnf:/xx/my.cnf"
       - "/etc/localtime:/etc/localtime:ro"  # 设置与宿主机时间同步
