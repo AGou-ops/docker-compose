@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegraf-cm
+  labels:
+    app: telegraf
+data:
+  telegraf.conf: |+
+    
+    [agent]
+      collection_jitter = "0s"
+      debug = false
+      flush_interval = "10s"
+      flush_jitter = "0s"
+      hostname = "$HOSTNAME"
+      interval = "10s"
+      logfile = ""
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      omit_hostname = false
+      precision = ""
+      quiet = false
+      round_interval = true
+    
+    
+    [[outputs.influxdb_v2]]
+      urls = ["http://${DOCKER_INFLUXDB_INIT_HOST}:${INFLUXDB_SVC_PORT}"]
+      token = "$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"
+      organization = "$DOCKER_INFLUXDB_INIT_ORG"
+      bucket = "$DOCKER_INFLUXDB_INIT_BUCKET"
+      insecure_skip_verify = false
+    [[outputs.prometheus_client]]
+      listen = ":9273"
+      path = "/metrics"
+      
+    [[inputs.diskio]]
+    [[inputs.kernel]]
+    [[inputs.mem]]
+    [[inputs.net]]
+    [[inputs.processes]]
+    [[inputs.swap]]
+    [[inputs.system]]
+    [[inputs.cpu]]
+      collect_cpu_time = false
+      percpu = true
+      report_active = false
+      totalcpu = true
+    [[inputs.disk]]
+      ignore_fs = [
+        "tmpfs",
+        "devtmpfs",
+        "devfs",
+        "iso9660",
+        "overlay",
+        "aufs",
+        "squashfs"
+      ]
+    [[inputs.kubernetes]]
+      bearer_token = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      insecure_skip_verify = true
+      url = "https://$HOSTIP:10250"
+    
+    [[inputs.docker]]
+    endpoint = "unix:///var/run/docker.sock"

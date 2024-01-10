@@ -1,0 +1,3 @@
+cpu,time_idle,foo,bar
+cpu0,42,88,99
+cpu1,42,99,99

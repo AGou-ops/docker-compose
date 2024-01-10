@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    app: influxdb
+  name: influxdbv2-auth
+data:
+  admin-token: "MmQyZDRmYTlkZDFjZjg2NDgxNmRjZmFkODQ1YTQ2MWQ2YTFhYmI1YmQzMWUzNWE2OWQxZDk2NWU5Y2I5MjI2ZQ=="
+  admin-password: "YWRtaW5hZG1pbg=="
+# ---
+# kind: PersistentVolumeClaim
+# apiVersion: v1
+# metadata:
+#   name: influxdb2-pvc
+#   labels:
+#     app: influxdb
+# spec:
+#   accessModes:
+#     - "ReadWriteOnce"
+#   resources:
+#     requests:
+#       storage: "50Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: influxdbv2-svc
+  labels:
+    app: influxdb
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 8086
+  selector:
+    app: influxdb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: influxdbv2-sts
+  labels:
+    app: influxdb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: influxdb
+  template:
+    metadata:
+      labels:
+        app: influxdb
+    spec:
+      containers:
+        - name: influxdb2
+          image: "influxdb:2.7.4-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8086
+              protocol: TCP
+          # 从configmap中读取环境变量
+          envFrom:
+            - configMapRef:
+                name: telegraf-env
+          # 传入Secret作为环境变量
+          env:
+            - name: DOCKER_INFLUXDB_INIT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: influxdbv2-auth
+                  key: admin-password
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdbv2-auth
+                  key: admin-token
+            - name: DOCKER_INFLUXD_BOLT_PATH
+              value: /var/lib/influxdb2/influxd.bolt
+            - name: DOCKER_INFLUXD_ENGINE_PATH
+              value: /var/lib/influxdb2
+          volumeMounts:
+          - name: influxdb-storage
+            mountPath: /var/lib/influxdb2
+      volumes:
+      - name: influxdb-storage
+        emptyDir:
+          sizeLimit: 10Gi
+        # persistentVolumeClaim:
+        #   claimName: influxdb2-pvc

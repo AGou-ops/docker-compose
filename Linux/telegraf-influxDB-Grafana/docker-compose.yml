@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  influxdb:
+    image: influxdb:2.7.4-alpine
+    container_name: influxdb
+    restart: always
+    volumes:
+      - influxdb-storage:/var/lib/influxdb2:rw
+    env_file:
+      - .env
+    entrypoint: ["./entrypoint.sh"]
+    ports:
+      - ${DOCKER_INFLUXDB_INIT_PORT}:8086
+    networks:
+      - telegraf
+
+  telegraf:
+    image: telegraf:1.29.0-mod
+    container_name: telegraf
+    restart: always
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./mibs:/usr/share/snmp/mibs
+      - ./example.json:/tmp/example.json
+    env_file:
+      - .env
+    depends_on:
+      - influxdb
+    ports:
+      - 9273:9273
+      - 16514:16514/udp
+      - 16514:16514/tcp
+    networks:
+      - telegraf
+
+  prometheus:
+    image: prom/prometheus:v2.48.1
+    container_name: prometheus
+    restart: always
+    volumes:
+      - prometheus-storage:/prometheus:rw
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - 9091:9090
+    depends_on:
+      - telegraf
+    networks:
+      - telegraf
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    restart: always
+    volumes:
+      - grafana-storage:/var/lib/grafana:rw
+    ports:
+      - ${GRAFANA_PORT}:3000
+    depends_on:
+      - influxdb
+    networks:
+      - telegraf
+
+volumes:
+  prometheus-storage:
+  grafana-storage:
+  influxdb-storage:
+networks:
+  telegraf:

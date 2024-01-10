@@ -1,0 +1,157 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: telegraf-sa
+  labels:
+    app: telegraf
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: influx-stats-viewer
+  labels:
+    app: telegraf
+    rbac.authorization.k8s.io/aggregate-view-telegraf-stats: "true"
+rules:
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes/proxy", "nodes/stats"]
+    verbs: ["get", "list", "watch"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: influx:telegraf
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.authorization.k8s.io/aggregate-view-telegraf-stats: "true"
+    - matchLabels:
+        rbac.authorization.k8s.io/aggregate-to-view: "true"
+rules: [] # Rules are automatically filled in by the controller manager.
+---
+# Source: telegraf-ds/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: influx-telegraf-viewer
+  labels:
+    app: telegraf
+subjects:
+  - kind: ServiceAccount
+    name: telegraf-sa
+    namespace: telegraf-demo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: influx:telegraf
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: telegraf
+  name: telegraf-svc
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9273
+      targetPort: 9273
+  selector:
+    app: telegraf
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: telegraf
+  name: telegraf-ds
+spec:
+  selector:
+    matchLabels:
+      app: telegraf
+  template:
+    metadata:
+      labels:
+        app: telegraf
+    spec:
+      serviceAccountName: telegraf-sa
+      containers:
+        - name: telegraf
+          image: telegraf:1.29.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9273
+              hostPort: 9273
+              protocol: TCP
+          # 从configmap中读取环境变量
+          envFrom:
+            - configMapRef:
+                name: telegraf-env
+          # 传入相关变量
+          env:
+            # - name: DOCKER_INFLUXDB_INIT_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: influxdbv2-auth
+            #       key: admin-password
+            - name: DOCKER_INFLUXDB_INIT_ADMIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: influxdbv2-auth
+                  key: admin-token
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HOSTIP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: HOST_PROC
+              value: /hostfs/proc
+            - name: HOST_SYS
+              value: /hostfs/sys
+            - name: HOST_MOUNT_PREFIX
+              value: /hostfs
+          volumeMounts:
+            # - mountPath: /etc/telegraf/telegraf.conf
+            #   name: telegraf-claim0
+            #   readOnly: true
+
+            # 挂载配置文件.
+            - name: config
+              mountPath: /etc/telegraf
+            - name: varrunutmpro
+              mountPath: /var/run/utmp
+              readOnly: true
+            - name: hostfsro
+              mountPath: /hostfs
+              readOnly: true
+            # 此处根据当前集群使用的cri进行修改.
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+      restartPolicy: Always
+      volumes:
+        # - name: telegraf-claim0
+        #   persistentVolumeClaim:
+        #     claimName: telegraf-claim0
+        #     readOnly: true
+        - name: hostfsro
+          hostPath:
+            path: /
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: varrunutmpro
+          hostPath:
+            path: /var/run/utmp
+        - name: config
+          configMap:
+            name:  telegraf-cm
+---

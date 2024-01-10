@@ -1,0 +1,4 @@
+# Version=1.1
+# File Created: 2021-11-17T07:02:45+10:00
+Version,measurement,cpu,time_user,time_system,time_idle,time
+1.2,cpu,cpu0,42,42,42,2018-09-13T13:03:28Z

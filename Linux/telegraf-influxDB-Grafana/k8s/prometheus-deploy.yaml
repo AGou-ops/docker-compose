@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: prometheus
+  name: prometheus-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      containers:
+        - image: prom/prometheus:v2.48.1
+          name: prometheus
+          ports:
+            - containerPort: 9090
+              hostPort: 9090
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /prometheus
+              name: prometheus-storage
+            - mountPath: /etc/prometheus/
+              name: config
+      restartPolicy: Always
+      volumes:
+        - name: prometheus-storage
+          emptyDir:
+            sizeLimit: 10Gi
+          # persistentVolumeClaim:
+          #   claimName: prometheus-storage
+        - name: config
+          configMap:
+            name:  prometheus-cm
